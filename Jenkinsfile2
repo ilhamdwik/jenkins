@@ -1,0 +1,62 @@
+def credential = 'K3'
+def server = 'K3@103.23.199.235'
+def directory = '~/tugas/wayshub-frontend'
+def branch = 'master'
+def images = 'ilhaskam/wayshub-frontend'
+    
+pipeline{
+    agent any
+    post{
+      always{
+             echo 'Your Build'
+             discordSend description: '`Discord Notification is running`', footer: '', image: '', link: '', result: 'SUCCESS|UNSTABLE|FAILURE|ABORTED', scmWebUrl: '', thumbnail: '', title: 'Discord Notification', webhookURL: 'https://discord.com/api/webhooks/1055283274798342165/chuTPBsmyrmJABK7rPrWiBC7D9mzvg6876mcVbA9j_1yh-BjM8chLkqm8AjxD8HSIKUp'
+         }
+    }
+    stages{
+        stage ('compose down & git pull'){
+            steps{
+                sshagent([credential]) {
+                    sh """ssh -o StrictHostKeyChecking=no ${server} << EOF
+                    docker compose down
+                    docker system prune -f
+                    cd ${directory}
+                    git pull origin ${branch}
+                    exit
+                    EOF"""
+                }
+            }
+        }
+        stage ('build docker image'){
+            steps{
+                sshagent([credential]) {
+                    sh """ssh -o StrictHostKeyChecking=no ${server} << EOF
+                    cd ${directory}
+                    docker build -t {images}
+                    exit
+                    EOF"""
+                }
+            }
+        }
+        stage ('docker up'){
+            steps{
+                sshagent([credential]) {
+                    sh """ssh -o StrictHostKeyChecking=no ${server} << EOF
+                    cd ${directory}
+                    docker compose up -d
+                    exit
+                    EOF"""
+                }
+            }
+        }
+        stage ('push docker hub'){
+            steps{
+                sshagent([credential]) {
+                    sh """ssh -o StrictHostKeyChecking=no ${server} << EOF
+                    docker push ${images}
+                    exit
+                    EOF"""
+                 }
+            }
+        } 
+    }
+}
